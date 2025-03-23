@@ -1,0 +1,37 @@
+{
+  "name": "server",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "@alicloud/darabonba-stream": "^0.0.2",
+    "@alicloud/ocr-api20210707": "^3.1.2",
+    "@alicloud/openapi-client": "^0.4.12",
+    "@alicloud/pop-core": "^1.8.0",
+    "@alicloud/tea-typescript": "^1.8.0",
+    "@alicloud/tea-util": "^1.4.10",
+    "@koa/bodyparser": "^5.1.1",
+    "@koa/cors": "^5.0.0",
+    "@koa/router": "^13.1.0",
+    "axios": "^1.8.2",
+    "bcryptjs": "^3.0.2",
+    "cors": "^2.8.5",
+    "crypto-js": "^4.2.0",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "katex": "^0.16.21",
+    "koa": "^2.16.0",
+    "koa-body": "^6.0.1",
+    "koa-router": "^13.0.1",
+    "koa2-cors": "^2.0.6",
+    "mysql2": "^3.13.0"
+  }
+}

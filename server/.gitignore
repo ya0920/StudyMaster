@@ -1,0 +1,17 @@
+# 环境变量文件（必须忽略）
+.env
+
+# Node.js 依赖
+node_modules/
+
+# 日志文件
+*.log
+pm2.log
+
+# IDE 配置
+.vscode/
+.idea/
+
+# 临时文件
+*.env.local
+*.local
