@@ -1,6 +1,7 @@
 const Router = require('koa-router');
 const router = new Router();
 const { userLogin } = require('../controllers/index.js');
+const { userRegister } = require('../controllers/index.js');
 const { sign } = require('../utils/jwt.js');
 
 router.prefix('/user');
@@ -53,34 +54,6 @@ router.post('/login', async (ctx, next) => {
 });
 
 // 注册接口
-router.post('/register', async (ctx, next) => {
-  const { user_id, username, password, phone_number, user_type } = ctx.request.body; // post请求的数据
-  const created_at = new Date().toISOString().slice(0, 19).replace('T', ' '); // 获取当前时间
-  try {
-    const res = await userRegister(user_id, username, password, phone_number, user_type, created_at);
-    if (res.affectedRows === 1) { // 插入成功
-      const token = sign({
-        id: user_id,
-        phone_number: phone_number
-      });
-      ctx.body = {
-        code: 200,
-        msg: '注册成功',
-        token: token
-      };
-    } else {
-      ctx.body = {
-        code: 500,
-        msg: '注册失败'
-      };
-    }
-  } catch (error) {
-    ctx.body = {
-      code: 500,
-      data: error,
-      msg: '服务器异常'
-    };
-  }
-});
+router.post('/register', userRegister);
 
 module.exports = router;

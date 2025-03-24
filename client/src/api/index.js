@@ -8,7 +8,7 @@ export const userLogin = async (params) => {
 
 // 注册
 export const userRegister = async (params) => {
-  return await axios.post('/user/register', params);
+  return axios.post('/user/register', params); // 修改为 /user/register
 };
 
 // 调用后端的 OCR API 接口
@@ -154,9 +154,7 @@ export const getErrorTypes = async () => {
     }
 };
 
-// 保存错题接口
-// 修改接口封装
-// 修改接口封装处理响应结构
+// 保存错题
 export const saveWrongQuestion = async (params) => {
   try {
     const res = await axios.post('/api/saveWrongQuestion', params);
@@ -167,17 +165,46 @@ export const saveWrongQuestion = async (params) => {
   }
 };
 
-// 新增获取最近错题API
+// 获取最近错题API
 export const getRecentWrongQuestions = (params) => {
     return axios.get('/api/recentWrongQuestions', { params });
 };
 
-// 新增获取错题统计API
-export const getWeeklyWrongQuestions = (params) => {
-    return axios.get('/api/getWeeklyWrongQuestions', { params });
+
+// 获取本周错题统计（包括增长率）
+export const getWeeklyWrongQuestions = async (params) => {
+  try {
+    const res = await axios.get('/api/getWeeklyWrongQuestions', { params }); // 修改路径
+    return res;
+  } catch (error) {
+    console.error('获取本周错题统计失败:', error);
+    return { code: 500, message: '获取数据失败' };
+  }
 };
 
-// 新增获取学科分布API
+// 获取上周错题统计
+export const getLastWeekWrongQuestions = async (params) => {
+  try {
+    const res = await axios.get('/api/getLastWeekWrongQuestions', { params }); // 修改路径
+    return res;
+  } catch (error) {
+    console.error('获取上周错题统计失败:', error);
+    return { code: 500, message: '获取数据失败' };
+  }
+};
+
+// 获取学科分布API
 export const getSubjectDistribution = (params) => {
     return axios.get('/api/getSubjectDistribution', { params });
+};
+
+// 删除错题
+export const deleteWrongQuestion = async (id) => {
+  try {
+    const res = await axios.delete(`/api/wrongQuestion/${id}`);
+    return res;
+  } catch (error) {
+    console.error('删除错题失败:', error);
+    throw error;
+  }
 };

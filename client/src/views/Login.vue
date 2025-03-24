@@ -34,11 +34,12 @@
 
 <script setup>
 import { ref } from 'vue';
-import router from '@/router';
+import { useRouter } from 'vue-router';
 import md5 from 'md5';
 import { userLogin } from '@/api/index.js';
 import { ElMessage } from 'element-plus';
 
+const router = useRouter();
 // 定义响应式数据，默认用户类型为学生
 const userType = ref('student');
 const phone = ref('');
@@ -74,6 +75,8 @@ const login = async () => {
         // 存储用户信息
         localStorage.setItem('userInfo', JSON.stringify(res.data));
         ElMessage.success('登录成功');
+        console.log('登录成功:', res);
+        
 
         // 跳转到 Home 页面
         router.push('/home');

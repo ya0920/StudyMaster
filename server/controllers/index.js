@@ -33,10 +33,41 @@ const userLogin = async (phone, password, role) => {
 };
 
 // 用户注册
-const userRegister = async (user_id, username, password, phone_number, user_type, created_at) => {
-    const sql = 'INSERT INTO users (user_id, username, password, phone_number, user_type, created_at) VALUES (?, ?, ?, ?, ?, ?)';
-    const values = [user_id, username, password, phone_number, user_type, created_at];
-    return await allServices.query(sql, values);
+const userRegister = async (ctx) => {
+    try {
+        const { phone, password, role, name } = ctx.request.body;
+        
+        // 检查手机号是否已注册
+        const checkUser = await allServices.query('SELECT * FROM users WHERE phone = ?', [phone]);
+        if (checkUser.length > 0) {
+            ctx.status = 400;
+            ctx.body = {
+                code: 400,
+                message: '该手机号已注册'
+            };
+            return;
+        }
+        
+        // 插入新用户
+        const sql = 'INSERT INTO users (phone, password, role, name) VALUES (?, ?, ?, ?)';
+        const result = await allServices.query(sql, [phone, password, role, name]);
+        
+        ctx.body = {
+            code: 200,
+            data: {
+                id: result.insertId
+            },
+            message: '注册成功'
+        };
+    } catch (error) {
+        console.error('注册失败:', error);
+        ctx.status = 500;
+        ctx.body = {
+            code: 500,
+            message: '注册失败',
+            error: error.message
+        };
+    }
 };
 
 // 获取错误类型列表
@@ -154,11 +185,16 @@ const saveWrongQuestion = async (ctx) => {
   }
 };
 
-// 获取最近错题（新增方法）
+// 获取最近错题（支持分页和学科筛选）
 const getRecentWrongQuestions = async (ctx) => {
     try {
-        const { studentId } = ctx.query;
-        const sql = `
+        const { studentId, page = 1, pageSize = 5, subject } = ctx.query;
+        
+        // 计算偏移量
+        const offset = (page - 1) * pageSize;
+        
+        // SQL查询基础部分
+        let sql = `
             SELECT 
                 wq.id,
                 wq.question_content AS content,
@@ -170,14 +206,25 @@ const getRecentWrongQuestions = async (ctx) => {
             LEFT JOIN subjects s ON wq.subject_id = s.id
             LEFT JOIN knowledge_points kp ON wq.knowledge_point_id = kp.id
             WHERE wq.student_id = ?
-            ORDER BY wq.created_at DESC
-            LIMIT 5
         `;
-        const rows = await allServices.query(sql, [studentId]);
+        
+        const params = [studentId];
+        
+        // 如果指定了学科，添加过滤条件
+        if (subject && subject !== '全部') {
+            sql += ` AND s.name = ?`;
+            params.push(subject);
+        }
+        
+        // 添加排序和分页
+        sql += ` ORDER BY wq.created_at DESC LIMIT ? OFFSET ?`;
+        params.push(parseInt(pageSize), parseInt(offset));
+        
+        const rows = await allServices.query(sql, params);
         
         ctx.body = {
             code: 200,
-            data: rows, // 直接使用数据库返回的格式化时间
+            data: rows,
             message: '获取最近错题成功'
         };
     } catch (error) {
@@ -191,8 +238,7 @@ const getRecentWrongQuestions = async (ctx) => {
     }
 };
 
-// 新增本周错题统计方法
-// 新增获取上周错题统计方法
+// 获取上周错题统计方法
 const getLastWeekWrongQuestions = async (ctx) => {
     try {
         const { studentId } = ctx.query;
@@ -307,13 +353,62 @@ const getSubjectDistribution = async (ctx) => {
   }
 };
 
+
+// 删除错题
+const deleteWrongQuestion = async (ctx) => {
+    try {
+        const { id } = ctx.params;
+        
+        // 验证ID是否存在
+        if (!id) {
+            ctx.status = 400;
+            ctx.body = {
+                code: 400,
+                message: '错题ID不能为空'
+            };
+            return;
+        }
+        
+        // 查询该错题是否存在
+        const checkSql = 'SELECT id FROM wrong_questions WHERE id = ?';
+        const checkResult = await allServices.query(checkSql, [id]);
+        
+        if (checkResult.length === 0) {
+            ctx.status = 404;
+            ctx.body = {
+                code: 404,
+                message: '错题不存在'
+            };
+            return;
+        }
+        
+        // 执行删除操作
+        const deleteSql = 'DELETE FROM wrong_questions WHERE id = ?';
+        await allServices.query(deleteSql, [id]);
+        
+        ctx.body = {
+            code: 200,
+            message: '删除成功'
+        };
+    } catch (error) {
+        console.error('删除错题失败:', error);
+        ctx.status = 500;
+        ctx.body = {
+            code: 500,
+            message: '删除错题失败',
+            error: error.message
+        };
+    }
+};
+
 module.exports = {
     userLogin,
     userRegister,
-    getErrorTypes, // 导出新的控制器函数
+    getErrorTypes,
     saveWrongQuestion,
-    getRecentWrongQuestions, // ✅ 确保导出新增方法
+    getRecentWrongQuestions, 
     getLastWeekWrongQuestions,
     getWeeklyWrongQuestions,
-    getSubjectDistribution
+    getSubjectDistribution,
+    deleteWrongQuestion
 };

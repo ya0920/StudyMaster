@@ -5,7 +5,7 @@
             <p>AI助力高效学习</p>
         </div>
         <div class="type-select">
-            <el-radio-group v-model="userType" size="large" round>
+            <el-radio-group v-model="userType" size="large">
                 <el-radio-button label="student">学生</el-radio-button>
                 <el-radio-button label="parent">家长</el-radio-button>
             </el-radio-group>
@@ -16,7 +16,10 @@
             <input type="password" v-model="confirmPassword" placeholder="请确认密码" />
             <div class="verify-code">
                 <input type="text" v-model="verifyCode" placeholder="请输入验证码" />
-                <button class="get-code-btn" @click="getVerifyCode">获取验证码</button>
+                <!-- 替换原有按钮为自定义验证码组件 -->
+                <div class="captcha-container">
+                    <VerifyCode ref="verifyCodeRef" />
+                </div>
             </div>
         </div>
         <button class="login-button" @click="handleRegister">注册</button>
@@ -37,9 +40,11 @@
 
 <script setup>
 import { ref } from 'vue';
-import { useRouter } from 'vue-router'; // 引入 useRouter 函数
-import { userRegister } from '@/api/index.js'; // 引入注册 API
-import { ElMessage } from 'element-plus'; // 引入 ElMessage
+import { useRouter } from 'vue-router';
+import { userRegister } from '@/api/index.js';
+import { ElMessage } from 'element-plus';
+import md5 from 'md5';
+import VerifyCode from '@/components/verifyCode.vue'; // 导入验证码组件
 
 // 定义响应式数据，默认用户类型为学生
 const userType = ref('student');
@@ -47,56 +52,103 @@ const phone = ref('');
 const password = ref('');
 const confirmPassword = ref('');
 const verifyCode = ref('');
+const verifyCodeRef = ref(null); // 引用验证码组件
 
-const router = useRouter(); // 获取路由实例
-
-// 定义获取验证码的方法
-const getVerifyCode = () => {
-    console.log('点击获取验证码，手机号:', phone.value);
-    // 这里可以添加实际调用获取验证码 API 的逻辑
-};
+const router = useRouter();
 
 // 定义注册方法
 const handleRegister = async () => {
+    // 表单验证
+    if (!phone.value) {
+        ElMessage.error('手机号不能为空');
+        return;
+    }
+    
+    // 验证手机号格式
+    if (!/^1[3-9]\d{9}$/.test(phone.value)) {
+        ElMessage.error('请输入正确的手机号');
+        return;
+    }
+    
+    if (!password.value) {
+        ElMessage.error('密码不能为空');
+        return;
+    }
+    
+    // 验证密码长度
+    if (password.value.length < 6) {
+        ElMessage.error('密码长度至少为6位');
+        return;
+    }
+    
+    // 验证两次密码是否一致
     if (password.value !== confirmPassword.value) {
         ElMessage.error('两次输入的密码不一致');
         return;
     }
-    if (!phone.value || !password.value || !verifyCode.value) {
-        ElMessage.error('手机号、密码或验证码不能为空');
+    
+    // 验证验证码是否正确
+    if (!verifyCode.value) {
+        ElMessage.error('验证码不能为空');
         return;
     }
-    const user_id = Date.now().toString(); // 简单生成一个用户ID
-    const res = await userRegister({
-        user_id,
-        username: phone.value, // 使用手机号作为用户名
-        password: password.value,
-        phone_number: phone.value,
-        user_type: userType.value,
-        created_at: new Date().toISOString().slice(0, 19).replace('T', ' ')
-    });
 
-    if (res.code === 200) {
-        ElMessage.success('注册成功');
-        // 跳转到 Home 页面
-        router.push('/home');
-    } else {
-        ElMessage.error(res.msg || '注册失败');
+    // 正确获取验证码值 - 这里是关键
+    console.log('验证码组件引用:', verifyCodeRef.value);
+    const generatedCode = verifyCodeRef.value?.verifyCode;
+
+    // 调试信息
+    console.log('生成的验证码:', generatedCode);
+    console.log('用户输入的验证码:', verifyCode.value);
+
+    // 进行不区分大小写的比较
+    if (!generatedCode || verifyCode.value.toLowerCase() !== generatedCode.toLowerCase()) {
+        ElMessage.error(`验证码错误！正确验证码: ${generatedCode}`);
+        if (verifyCodeRef.value?.changeImgCode) {
+            verifyCodeRef.value.changeImgCode();
+        }
+        return;
+    }
+    
+    try {
+        // 修改路径匹配后端API路由
+        const res = await userRegister({
+            phone: phone.value,
+            password: md5(password.value),
+            role: userType.value,
+            name: `用户${phone.value.substring(7)}`
+        });
+
+        if (res.code === 200) {
+            ElMessage.success('注册成功');
+            router.push('/login');
+        } else {
+            ElMessage.error(res.message || '注册失败');
+            if (verifyCodeRef.value?.changeImgCode) {
+                verifyCodeRef.value.changeImgCode();
+            }
+        }
+    } catch (error) {
+        console.error('注册错误:', error);
+        ElMessage.error('注册失败，请稍后重试');
+        if (verifyCodeRef.value?.changeImgCode) {
+            verifyCodeRef.value.changeImgCode();
+        }
     }
 };
 
 // 定义返回登录页的方法
 const handleBackToLogin = () => {
-    router.push('/login'); // 假设登录页的路由路径是 /login
+    router.push('/login');
 };
 
 // 定义第三方登录方法
 const handleWeChatLogin = () => {
-    console.log('点击了微信登录');
+    ElMessage.info('微信登录功能开发中');
 };
 
 const handleQQLogin = () => {
-    console.log('点击了QQ登录');
+    ElMessage.info('QQ登录功能开发中');
 };
 </script>
 
@@ -173,16 +225,9 @@ const handleQQLogin = () => {
         flex: 1;
     }
 
-    .get-code-btn {
-        height: 44px;
-        padding: 10px 10px;
-        font-size: 14px;
-        background-color: #2196F3;
-        color: white;
-        border: none;
-        border-radius: 5px;
-        cursor: pointer;
+    .captcha-container {
         margin-left: 10px;
+        cursor: pointer;
     }
 }
 
@@ -204,7 +249,8 @@ const handleQQLogin = () => {
     text-align: center;
     color: #2196F3;
     cursor: pointer;
-    // margin-bottom: 20px;
+    display: block;
+    margin-bottom: 20px;
 }
 
 .login-footer {

@@ -1,0 +1,84 @@
+@startuml
+' 设置整体布局方向为从上到下，减少水平方向的交叉
+top to bottom direction
+
+' 配置类的外观样式
+skinparam class {
+    backgroundColor #F5F5F5
+    borderColor #AAAAAA
+    fontColor #333333
+    roundCorner 10
+}
+
+' 配置接口的外观样式
+skinparam interface {
+    backgroundColor #E0F0FF
+    borderColor #6699CC
+    fontColor #333333
+    stereotypeCBackgroundColor #99CCFF
+    stereotypeCFontColor #FFFFFF
+}
+
+' 配置关联线样式
+skinparam arrow {
+    color #666666
+    size 10
+}
+skinparam edge {
+    thickness 2
+    color #666666
+}
+
+' 配置继承关系线样式
+skinparam inheritance {
+    arrowColor #999999
+    lineColor #999999
+    lineThickness 2
+}
+
+' 配置实现关系线样式
+skinparam implementation {
+    arrowColor #0099CC
+    lineColor #0099CC
+    lineThickness 2
+}
+
+' 界面类
+class 拍照录入界面 {
+    + 拍照()
+    + OCR识别()
+    + 手动补充信息()
+    + 提交错题()
+}
+
+' 接口类
+interface OCR接口 {
+    + 识别图像文字()
+}
+
+interface DeepSeek接口 {
+    + 生成同类题目()
+    + 提供AI解答()
+    + 解析题目学科()
+    + 解析题目知识点()
+}
+
+' 控制器类
+class OCR控制器 {
+    + 处理OCR相关请求()
+    + 调用OCR服务()
+}
+
+class AI控制器 {
+    + 处理AI相关请求()
+    + 调用AI服务()
+}
+
+' 界面类与接口关联
+拍照录入界面 ..|> OCR接口
+
+' 控制器类与其他类关联
+OCR控制器 -- 拍照录入界面 : 处理OCR相关请求
+OCR控制器 -- OCR接口 : 调用OCR接口
+AI控制器 -- DeepSeek接口 : 调用DeepSeek接口
+@enduml

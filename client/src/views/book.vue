@@ -6,7 +6,7 @@
                 <van-popover v-model:show="showPopover" :actions="subjectOptions" @select="onSelectSubject"
                     placement="bottom-end">
                     <template #reference>
-                        <van-button type="primary" size="small" class="subject-trigger van-button--primary">
+                        <van-button type="primary" size="small" class="subject-trigger van-button--primary" v-debounce="togglePopover">
                             {{ selectedSubject }}
                             <van-icon name="arrow-down" />
                         </van-button>
@@ -15,46 +15,172 @@
             </template>
         </van-nav-bar>
 
-        <div class="content">
-            <!-- 柱状图部分 -->
-            <section class="chart-section">
-                <h2 class="chart-title">错题分布</h2>
-                <VerticalBarChart :data="chapterData" />
-            </section>
+        <!-- 下拉刷新包装器 -->
+        <van-pull-refresh v-model="isRefreshing" @refresh="onRefresh">
+            <div class="content">
+                <!-- 柱状图部分 -->
+                <section class="chart-section">
+                    <h2 class="chart-title">错题分布</h2>
+                    <VerticalBarChart :data="chapterData" />
+                </section>
 
-            <!-- 文本部分 -->
-            <section class="text-section">
-                <ul>
-                    <li v-for="(detail, index) in filteredChapterDetails" :key="index" class="card">
-                        <div class="card-top">
-                            <span class="subject" :style="{ color: getSubjectColor(detail.subject) }">
-                                {{ detail.subject }}
-                            </span>
-                            <span class="time">{{ detail.date }}</span>
-                        </div>
-                        <div class="knowledge">
-                            {{ detail.knowledgePoint }}
-                        </div>
-                    </li>
-                </ul>
-            </section>
-        </div>
+                <!-- 文本部分 - 简化为类似示例的结构 -->
+                <section class="text-section">
+                    <van-swipe-cell 
+                        v-for="(detail, index) in chapterDetails" 
+                        :key="index"
+                        v-longpress:800="() => handleLongPress(detail)"
+                    >
+                        <!-- 使用卡片组件简化结构 -->
+                        <van-cell class="error-card" :clickable="true" @click="goToDetail(detail.id)">
+                            <template #title>
+                                <div class="card-top">
+                                    <span class="subject" :style="{ color: getSubjectColor(detail.subject) }">
+                                        {{ detail.subject }}
+                                    </span>
+                                    <span class="time">{{ detail.date }}</span>
+                                </div>
+                            </template>
+                            <template #label>
+                                <div class="knowledge">
+                                    {{ detail.knowledgePoint }}
+                                </div>
+                            </template>
+                        </van-cell>
+                        
+                        <!-- 右侧删除按钮 -->
+                        <template #right>
+                            <van-button 
+                                square 
+                                text="删除" 
+                                type="danger" 
+                                class="delete-button"
+                                :loading="deletingIds.has(detail.id)"
+                                @click.stop="confirmDelete(detail)"
+                            />
+                        </template>
+                    </van-swipe-cell>
+                </section>
+
+                <!-- 上拉加载更多 -->
+                <van-list
+                    v-model:loading="loading"
+                    :finished="finished"
+                    finished-text="没有更多了"
+                    @load="onLoad"
+                >
+                </van-list>
+            </div>
+        </van-pull-refresh>
     </div>
 </template>
 
 <script setup>
-import { ref, computed } from 'vue';
+// 修改导入，添加 showConfirmDialog
+import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { NavBar, Popover, Button, Icon } from 'vant';
+import { 
+  NavBar, 
+  Popover, 
+  Button, 
+  Icon, 
+  PullRefresh, 
+  List, 
+  showToast, 
+  showConfirmDialog, 
+  SwipeCell, 
+  Cell 
+} from 'vant';
 import VerticalBarChart from '@/components/VerticalBarChart.vue';
+import { getRecentWrongQuestions, deleteWrongQuestion as deleteWrongQuestionApi } from '@/api/index.js';
+
+// 所有业务逻辑保持不变
 
 const router = useRouter();
 const showPopover = ref(false);
 const selectedSubject = ref('全部');
 
+// 切换弹出框
+const togglePopover = () => {
+    showPopover.value = !showPopover.value;
+};
+
+// 长按处理函数
+const handleLongPress = (detail) => {
+  showConfirmDialog({
+    title: '错题复习提醒',
+    message: `是否将"${detail.knowledgePoint}"添加到复习计划？`,
+    confirmButtonText: '确定',
+    cancelButtonText: '取消'
+  })
+    .then(() => {
+      showToast('已添加到复习计划');
+    })
+    .catch(() => {
+      // 取消操作，不做任何处理
+    });
+};
+
+// 下拉刷新和加载更多状态
+const isRefreshing = ref(false);
+const loading = ref(false);
+const finished = ref(false);
+const currentPage = ref(1);
+const pageSize = 5; // 每页显示5条
+
+// 删除错题确认
+const confirmDelete = (detail) => {
+  showConfirmDialog({
+    title: '删除确认',
+    message: `确定要删除"${detail.subject}-${detail.knowledgePoint}"的错题吗？`,
+    confirmButtonText: '删除',
+    confirmButtonColor: '#ee0a24',
+    cancelButtonText: '取消'
+  })
+    .then(() => {
+      deleteWrongQuestion(detail.id);
+    })
+    .catch(() => {
+      // 取消操作，不做任何处理
+    });
+};
+
+// 添加删除中状态管理
+const deletingIds = ref(new Set());
+
+// 删除错题
+const deleteWrongQuestion = async (id) => {
+    try {
+        // 设置删除中状态
+        deletingIds.value.add(id);
+        
+        // 调用实际的API删除错题
+        const res = await deleteWrongQuestionApi(id);
+        
+        if (res.code === 200) {
+            // 删除成功，从列表中移除该错题
+            chapterDetails.value = chapterDetails.value.filter(item => item.id !== id);
+            
+            // 更新柱状图数据
+            updateChartData();
+            
+            showToast('删除成功');
+        } else {
+            showToast('删除失败：' + (res.message || '未知错误'));
+        }
+    } catch (error) {
+        console.error('删除错题失败:', error);
+        showToast('删除失败，请稍后重试');
+    } finally {
+        // 无论成功失败，都移除删除中状态
+        deletingIds.value.delete(id);
+    }
+};
+
+// 学科筛选选项
 const subjectOptions = [
     { text: '全部', value: '全部' },
-    { text: '语文', value: '语文' }, 
+    { text: '语文', value: '语文' },
     { text: '数学', value: '数学' },
     { text: '英语', value: '英语' },
     { text: '物理', value: '物理' },
@@ -65,46 +191,20 @@ const subjectOptions = [
     { text: '政治', value: '政治' }
 ];
 
+// 当前学科筛选
 const onSelectSubject = (action) => {
     selectedSubject.value = action.value;
     showPopover.value = false;
+    // 重新加载数据
+    resetData();
+    fetchWrongQuestions();
 };
 
-const chapterData = ref([
-    { value: 80, name: '第一章' },
-    { value: 60, name: '第二章' },
-    { value: 40, name: '第三章' },
-    { value: 30, name: '第四章' },
-    { value: 20, name: '第五章' },
-]);
+// 柱状图数据
+const chapterData = ref([]);
 
-// 示例数据，卡片只展示学科、知识点和时间
-const chapterDetails = ref([
-    {
-        subject: '数学',
-        knowledgePoint: '一元二次方程',
-        date: '2025-02-04'
-    },
-    {
-        subject: '语文',
-        knowledgePoint: '现代诗鉴赏',
-        date: '2025-02-03'
-    },
-    {
-        subject: '英语',
-        knowledgePoint: '时态用法',
-        date: '2025-02-02'
-    }
-]);
-
-// 根据所选学科过滤数据，如果选择“全部”，则返回所有数据
-const filteredChapterDetails = computed(() => {
-    if (selectedSubject.value === '全部') {
-        return chapterDetails.value;
-    } else {
-        return chapterDetails.value.filter(detail => detail.subject === selectedSubject.value);
-    }
-});
+// 错题详情数据
+const chapterDetails = ref([]);
 
 // 定义各学科对应的颜色
 const subjectColors = {
@@ -123,23 +223,150 @@ const getSubjectColor = (subject) => {
     return subjectColors[subject] || '#333';
 };
 
+// 返回上一页
 const onClickLeft = () => {
     router.back();
+};
+
+// 重置数据
+const resetData = () => {
+    currentPage.value = 1;
+    chapterDetails.value = [];
+    finished.value = false;
+};
+
+// 下拉刷新处理
+const onRefresh = async () => {
+    try {
+        resetData();
+        await fetchWrongQuestions();
+        isRefreshing.value = false;
+        showToast('刷新成功');
+    } catch (error) {
+        console.error('刷新数据失败:', error);
+        isRefreshing.value = false;
+        showToast('刷新失败');
+    }
+};
+
+// 上拉加载更多
+const onLoad = async () => {
+    currentPage.value++;
+    await fetchWrongQuestions(false); // 不清空数据，追加
+    loading.value = false;
+};
+
+// 获取错题数据
+const fetchWrongQuestions = async (clearData = true) => {
+    try {
+        // 获取用户信息
+        const userInfo = JSON.parse(localStorage.getItem('userInfo'));
+        if (!userInfo?.id) {
+            console.error('无法获取用户ID');
+            return;
+        }
+
+        // 构建请求参数，包含学科筛选
+        const params = { 
+            studentId: userInfo.id,
+            page: currentPage.value,
+            pageSize: pageSize
+        };
+        
+        // 如果选择了特定学科，添加到请求参数
+        if (selectedSubject.value !== '全部') {
+            params.subject = selectedSubject.value;
+        }
+
+        // 传递参数到后端
+        const res = await getRecentWrongQuestions(params);
+        
+        console.log('获取错题数据:', res);
+        
+        if (res.code === 200) {
+            const newData = res.data.map(item => ({
+                subject: item.subject,
+                knowledgePoint: item.knowledgePoint || item.chapter,
+                date: item.time ? formatTime(item.time) : '未知时间',
+                id: item.id // 保存ID用于详情页
+            }));
+
+            // 如果需要清空数据（下拉刷新时）
+            if (clearData) {
+                chapterDetails.value = newData;
+            } else {
+                // 否则追加数据（上拉加载更多时）
+                chapterDetails.value = [...chapterDetails.value, ...newData];
+            }
+
+            // 如果返回的数据少于pageSize，说明已经没有更多数据了
+            if (res.data.length < pageSize) {
+                finished.value = true;
+            }
+
+            // 更新柱状图数据
+            updateChartData();
+        } else {
+            finished.value = true;
+        }
+    } catch (error) {
+        console.error('获取错题数据失败:', error);
+        finished.value = true;
+    }
+};
+
+// 更新柱状图数据
+const updateChartData = () => {
+    const chapterCount = {};
+    chapterDetails.value.forEach(item => {
+        chapterCount[item.knowledgePoint] = (chapterCount[item.knowledgePoint] || 0) + 1;
+    });
+
+    chapterData.value = Object.entries(chapterCount).map(([name, value]) => ({
+        name,
+        value
+    }));
+};
+
+// 时间格式化函数 - 改为年-月-日格式
+const formatTime = (dateString) => {
+    const date = new Date(dateString);
+    const year = date.getFullYear();
+    const month = date.getMonth() + 1; // 月份从0开始，需要+1
+    const day = date.getDate();
+    return `${year}-${month}-${day}`;
+}
+
+// 页面加载时获取数据
+onMounted(() => {
+    fetchWrongQuestions();
+});
+
+// 跳转到详情页
+const goToDetail = (id) => {
+    if (!id) {
+        showToast('无法获取题目ID');
+        return;
+    }
+    router.push({
+        name: 'detail',
+        params: { id }
+    });
 };
 </script>
 
 <style lang="less" scoped>
 .book-page {
+    background: #FAFAFA;
     min-height: 100vh;
-
+    
     .content {
         padding: 18px;
-        background: #FAFAFA; // 内容区背景色为灰色
-        padding-bottom: 40px;
+        padding-bottom: 20px;
 
         .chart-section {
-            background: #fff; // 柱状图区域背景白色
-            border-radius: 12px; // 圆角边框
+            background: #fff;
+            border-radius: 12px;
             padding: 15px;
             margin-bottom: 24px;
 
@@ -149,43 +376,51 @@ const onClickLeft = () => {
         }
 
         .text-section {
-            ul {
-                list-style: none;
-                padding: 0;
+            // 移除原来的ul样式，改为直接管理swipe-cell
+            
+            .error-card {
                 margin: 0;
-
-                .card {
-                    background-color: #fff;
-                    box-shadow: 0px 1px 2px 0px rgba(0, 0, 0, 0.05);
-                    border-radius: 12px 12px 12px 12px;
-
-                    padding: 24px 15px;
-                    margin-top: 24px;
+                background-color: #fff;
+                border-radius: 12px;
+                
+                .card-top {
                     display: flex;
-                    flex-direction: column;
+                    justify-content: space-between;
+                    align-items: center;
 
-                    .card-top {
-                        display: flex;
-                        justify-content: space-between;
-                        align-items: center;
-
-                        .subject {
-                            font-size: 16px;
-                            font-weight: 500;
-                        }
-
-                        .time {
-                            font-size: 12px;
-                            color: #7f8c8d;
-                        }
+                    .subject {
+                        font-size: 16px;
+                        font-weight: 500;
                     }
 
-                    .knowledge {
-                        margin-top: 4px;
-                        font-size: 14px;
+                    .time {
+                        font-size: 12px;
                         color: #7f8c8d;
                     }
                 }
+
+                .knowledge {
+                    font-size: 14px;
+                    color: #7f8c8d;
+                    margin-top: 4px;
+                }
+            }
+            
+            // SwipeCell 样式调整
+            :deep(.van-swipe-cell) {
+                margin-top: 12px;
+                border-radius: 12px;
+                overflow: hidden;
+            }
+            
+            // 删除按钮样式
+            .delete-button {
+                height: 100%;
+                width: 80px;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                font-size: 14px;
             }
         }
 
@@ -204,19 +439,11 @@ const onClickLeft = () => {
                 transform: rotate(180deg);
             }
         }
-
-        .van-popover__action {
-            font-size: 14px;
-            padding: 10px 16px;
-
-            &:active {
-                background-color: #f2f3f5;
-            }
-        }
     }
 }
-:deep(.subject-trigger) {
-  color: #333;
-  background: #fff;
-}
 
+:deep(.subject-trigger) {
+    color: #333;
+    background: #fff;
+}
+</style>

@@ -8,17 +8,15 @@
         <!-- 用户信息 -->
         <section class="user-info">
             <div class="avatar">
-                <img src="@/assets/vue.svg" alt="用户头像">
+                <img src="@/assets/student.png" alt="用户头像">
             </div>
             <div class="info">
                 <div class="name-school">
-                    <span class="name">张雨晨</span>
-                    <span class="divider">|</span>
-                    <span class="school">初二·北京一中</span>
+                    <span class="name">{{ userInfo.name || '未知用户' }}</span>
                 </div>
                 <div class="badges">
-                    <span class="badge study-days">连续学习7天</span>
-                    <span class="badge honor">优秀学员</span>
+                    <span class="badge study-days">连续学习{{ studyDays }}天</span>
+                    <span class="badge honor">{{ userBadge }}</span>
                 </div>
             </div>
         </section>
@@ -27,14 +25,32 @@
         <section class="week-data">
             <div class="data-card">
                 <div class="data-content">
-                    <h3>本周错题</h3>
-                    <div class="data-main">
-                        <span class="number">15</span>
-                        <span class="unit">道</span>
+                    <!-- 左侧数据 -->
+                    <div class="data-left">
+                        <h3>本周错题</h3>
+                        <div class="data-main">
+                            <span class="number">{{ weeklyErrorCount }}</span>
+                            <span class="unit">道</span>
+                        </div>
+                        <div class="data-compare" :class="growthRate > 0 ? 'rise' : 'fall'">
+                            <i class="iconfont" :class="growthRate > 0 ? 'icon-rise' : 'icon-fall'"></i>
+                            <span>{{ compareText }}</span>
+                        </div>
                     </div>
-                    <div class="data-compare">
-                        <i class="iconfont icon-rise"></i>
-                        <span>较上周提升5%</span>
+                    
+                    <!-- 右侧进度环 -->
+                    <div class="data-right">
+                        <van-circle
+                            v-model:current="masteryPercent"
+                            :rate="100"
+                            :speed="100"
+                            :color="circleColor"
+                            layer-color="#ebedf0"
+                            :text="masteryPercent + '%'"
+                            size="80"
+                            :stroke-width="10"
+                        />
+                        <div class="circle-label">掌握度</div>
                     </div>
                 </div>
             </div>
@@ -92,10 +108,95 @@
 </template>
 
 <script setup>
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import TabBar from '@/components/TabBar.vue'
+import { getWeeklyWrongQuestions } from '@/api/index.js'
+import { Circle as VanCircle } from 'vant' // 导入Circle组件
 
 const router = useRouter()
+
+// 用户信息
+const userInfo = ref({
+    id: '',
+    name: '',
+    phone: ''
+})
+
+// 错题统计数据
+const weeklyErrorCount = ref(0)
+const growthRate = ref(0)
+const studyDays = ref(3) // 默认值
+
+// 添加掌握度数据（模拟数据）
+const masteryPercent = ref(75) // 掌握度百分比
+const totalQuestions = ref(100) // 总题目数
+
+// 圆环颜色计算
+const circleColor = computed(() => {
+    if (masteryPercent.value < 60) return '#ff4d4f' // 红色
+    if (masteryPercent.value < 80) return '#faad14' // 黄色
+    return '#52c41a' // 绿色
+})
+
+// 计算用户徽章
+const userBadge = computed(() => {
+    if (weeklyErrorCount.value > 20) return '学习达人'
+    if (weeklyErrorCount.value > 10) return '勤奋学员' 
+    return '优秀学员'
+})
+
+// 比较文本
+const compareText = computed(() => {
+    const rate = Math.abs(parseFloat(growthRate.value))
+    return growthRate.value > 0 
+        ? `较上周增长${rate}%` 
+        : `较上周下降${rate}%`
+})
+
+// 获取用户信息
+const getUserInfo = () => {
+    try {
+        const storedInfo = localStorage.getItem('userInfo')
+        if (storedInfo) {
+            userInfo.value = JSON.parse(storedInfo)
+            console.log('获取到用户信息:', userInfo.value)
+        }
+    } catch (error) {
+        console.error('获取用户信息失败:', error)
+    }
+}
+
+// 获取错题统计数据
+const fetchWrongQuestionStats = async () => {
+    try {
+        if (!userInfo.value.id) return
+        
+        const res = await getWeeklyWrongQuestions({ studentId: userInfo.value.id })
+        console.log('获取到错题统计:', res)
+        
+        if (res.code === 200 && res.data) {
+            weeklyErrorCount.value = res.data.count || 0
+            growthRate.value = res.data.growthRate || 0
+            
+            // 随机模拟掌握度数据 - 实际项目中应从API获取
+            masteryPercent.value = Math.floor(Math.random() * 40) + 60  // 60-100之间随机数
+        }
+    } catch (error) {
+        console.error('获取错题统计失败:', error)
+        
+        // 获取失败时使用模拟数据
+        weeklyErrorCount.value = 15
+        growthRate.value = 5.2
+        masteryPercent.value = 75
+    }
+}
+
+// 组件挂载时获取数据
+onMounted(() => {
+    getUserInfo()
+    fetchWrongQuestionStats()
+})
 
 // 点击错题本的处理函数
 const goToErrorBook = () => {
@@ -107,13 +208,15 @@ const goToParentGuard = () => {
     router.push('/parent-guard')
 }
 
-// 点击主题切换的处理函数（简单模拟，可进一步完善为弹出窗口等）
+// 点击主题切换的处理函数
 const toggleTheme = () => {
-    console.log('点击了主题切换，准备进行主题切换操作')
+    console.log('点击了主题切换')
 }
 
+// 退出登录
 const logout = () => {
     localStorage.removeItem('token')
+    localStorage.removeItem('userInfo')
     router.push('/login')
 }
 </script>
@@ -210,6 +313,29 @@ const logout = () => {
         padding: 16px;
         box-shadow: @card-shadow;
 
+        .data-content {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .data-left {
+            flex: 1;
+        }
+
+        .data-right {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding-left: 16px;
+            
+            .circle-label {
+                margin-top: 4px;
+                font-size: 12px;
+                color: #666;
+            }
+        }
+
         .data-main {
             display: flex;
             align-items: baseline;
@@ -231,12 +357,39 @@ const logout = () => {
         .data-compare {
             display: flex;
             align-items: center;
-            color: #4CAF50;
             font-size: 12px;
-
+            
             .icon-rise {
                 margin-right: 4px;
+                color: #4CAF50 !important;
             }
+            
+            .icon-fall {
+                margin-right: 4px;
+                color: #F44336;
+            }
+        }
+    }
+}
+
+.data-compare {
+    display: flex;
+    align-items: center;
+    font-size: 12px;
+    
+    &.rise {
+        color: #4CAF50;
+        
+        .icon-rise {
+            margin-right: 4px;
+        }
+    }
+    
+    &.fall {
+        color: #F44336;
+        
+        .icon-fall {
+            margin-right: 4px;
         }
     }
 }

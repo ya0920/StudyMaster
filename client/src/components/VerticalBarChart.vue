@@ -42,7 +42,7 @@ const initChart = () => {
     // 新增grid配置减少顶部留白
     grid: {
         top: '15%',
-        bottom: '15%'
+        bottom: '30%'
     },
     tooltip: {
       trigger: 'axis',

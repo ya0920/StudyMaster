@@ -116,7 +116,10 @@ onMounted(async () => {
                 growthRate.value = weeklyRes.data.growthRate;
             }
 
+            // 获取最近错题数据
             const res = await getRecentWrongQuestions({ studentId: userInfo.id });
+            console.log('最近错题数据:', res);
+            
             if (res.code === 200) {
                 recentErrors.value = res.data.map(item => ({
                     subject: item.subject,
