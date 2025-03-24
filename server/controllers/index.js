@@ -401,6 +401,83 @@ const deleteWrongQuestion = async (ctx) => {
     }
 };
 
+// 获取错题详情
+const getWrongQuestionDetail = async (ctx) => {
+    try {
+        const { id } = ctx.params;
+        
+        // 验证ID是否存在
+        if (!id) {
+            ctx.status = 400;
+            ctx.body = {
+                code: 400,
+                message: '错题ID不能为空'
+            };
+            return;
+        }
+        
+        // 查询该错题详细信息，确保错误类型关联查询正确
+        const sql = `
+            SELECT 
+                wq.id,
+                wq.question_content,
+                wq.correct_answer,
+                wq.wrong_answer,
+                wq.ai_analysis,
+                wq.ai_solution,
+                wq.error_type_id,  /* 添加原始ID用于调试 */
+                s.name AS subject,
+                kp.name AS knowledgePoint,
+                et.name AS errorType,
+                DATE_FORMAT(wq.created_at, '%Y-%m-%d %H:%i:%s') AS time
+            FROM wrong_questions wq
+            LEFT JOIN subjects s ON wq.subject_id = s.id
+            LEFT JOIN knowledge_points kp ON wq.knowledge_point_id = kp.id
+            LEFT JOIN error_types et ON wq.error_type_id = et.id
+            WHERE wq.id = ?
+        `;
+        
+        const result = await allServices.query(sql, [id]);
+        
+        if (result.length === 0) {
+            ctx.status = 404;
+            ctx.body = {
+                code: 404,
+                message: '错题不存在'
+            };
+            return;
+        }
+        
+        // 如果错误类型为空但错误类型ID存在，尝试直接查询错误类型表
+        if (!result[0].errorType && result[0].error_type_id) {
+            const errorTypeSql = `SELECT name FROM error_types WHERE id = ?`;
+            const errorTypeResult = await allServices.query(errorTypeSql, [result[0].error_type_id]);
+            
+            if (errorTypeResult.length > 0) {
+                result[0].errorType = errorTypeResult[0].name;
+            }
+        }
+        
+        // 删除调试用的 error_type_id 字段
+        delete result[0].error_type_id;
+        
+        ctx.body = {
+            code: 200,
+            data: result[0],
+            message: '获取错题详情成功'
+        };
+    } catch (error) {
+        console.error('获取错题详情失败:', error);
+        ctx.status = 500;
+        ctx.body = {
+            code: 500,
+            message: '获取错题详情失败',
+            error: error.message
+        };
+    }
+};
+
+
 module.exports = {
     userLogin,
     userRegister,
@@ -410,5 +487,6 @@ module.exports = {
     getLastWeekWrongQuestions,
     getWeeklyWrongQuestions,
     getSubjectDistribution,
-    deleteWrongQuestion
+    deleteWrongQuestion,
+    getWrongQuestionDetail
 };

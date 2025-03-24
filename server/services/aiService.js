@@ -1,6 +1,29 @@
 const axios = require('axios');
 require('dotenv').config();
 
+// 调用AI模型时增加超时设置
+const callAIModel = async (prompt, endpoint) => {
+  try {
+    const response = await axios.post(endpoint, {
+      prompt,
+      // 其他参数...
+    }, {
+      timeout: 120000, // 增加到120秒
+      headers: {
+        // 必要的头信息...
+      }
+    });
+    
+    return response.data;
+  } catch (error) {
+    // 更好的错误处理
+    if (error.code === 'ECONNABORTED') {
+      throw new Error('AI处理超时，请简化题目或稍后重试');
+    }
+    throw error;
+  }
+};
+
 // 阿里云百炼DeepSeek-R1模型调用 - 使用OpenAI兼容模式
 async function callDeepSeekModel(prompt, temperature = 0.7) {
   try {
@@ -106,6 +129,7 @@ async function generateAnalysis(question) {
 2. 解题关键思路
 3. 详细解析过程
 4. 常见错误及避免方法;
+请不要用markdown格式，只需要缩进和序号就可以了。
 `;
 
   return await callDeepSeekModel(prompt, 0.3);
@@ -114,14 +138,11 @@ async function generateAnalysis(question) {
 // 生成题目答案
 async function generateAnswer(question) {
   const prompt = `
-请为以下题目提供准确、详细的答案和解题步骤：
+请为以下题目提供答案：
 
 题目内容：${question}
 
-请按照以下结构组织答案：
-1. 最终答案（明确给出答案结果）
-2. 详细的解题步骤
-3. 解题过程中的关键公式或定理应用;
+你只需要给出最后的答案就好了
 `;
 
   return await callDeepSeekModel(prompt, 0.3);

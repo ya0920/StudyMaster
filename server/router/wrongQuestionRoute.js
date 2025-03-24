@@ -1,5 +1,5 @@
 const Router = require('koa-router');
-const { saveWrongQuestion, getRecentWrongQuestions, getWeeklyWrongQuestions, getLastWeekWrongQuestions, getSubjectDistribution, deleteWrongQuestion } = require('../controllers/index.js');
+const { saveWrongQuestion, getRecentWrongQuestions, getWeeklyWrongQuestions, getLastWeekWrongQuestions, getSubjectDistribution, deleteWrongQuestion,getWrongQuestionDetail } = require('../controllers/index.js');
 
 const wrongQuestionRouter = new Router();
 
@@ -13,8 +13,9 @@ wrongQuestionRouter.get('/api/getWeeklyWrongQuestions', getWeeklyWrongQuestions)
 wrongQuestionRouter.get('/api/getLastWeekWrongQuestions', getLastWeekWrongQuestions);
 // 获取各学科错题数量统计路由
 wrongQuestionRouter.get('/api/getSubjectDistribution', getSubjectDistribution);
-
 // 添加删除错题路由
 wrongQuestionRouter.delete('/api/wrongQuestion/:id', deleteWrongQuestion);
+// 获取错题详情路由
+wrongQuestionRouter.get('/api/wrongQuestion/:id', getWrongQuestionDetail);
 
 module.exports = wrongQuestionRouter;

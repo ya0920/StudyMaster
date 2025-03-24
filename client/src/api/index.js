@@ -208,3 +208,14 @@ export const deleteWrongQuestion = async (id) => {
     throw error;
   }
 };
+
+// 获取错题详情
+export const getWrongQuestionDetail = async (id) => {
+  try {
+    const res = await axios.get(`/api/wrongQuestion/${id}`);
+    return res;
+  } catch (error) {
+    console.error('获取错题详情失败:', error);
+    throw error;
+  }
+};
