@@ -18,6 +18,8 @@
     "element-plus": "^2.9.5",
     "exif-js": "^2.3.0",
     "katex": "^0.16.21",
+    "markdown-it": "^14.1.0",
+    "markdown-it-katex": "^2.0.3",
     "md5": "^2.3.0",
     "pinia": "^3.0.1",
     "vant": "^4.9.18",

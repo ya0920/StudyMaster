@@ -8,7 +8,7 @@ import { createPinia } from 'pinia'; // 状态管理
 import { ElMessage } from 'element-plus';
 import Vant from 'vant'
 import 'vant/lib/index.css'
-
+import directives from './directives';
 
 const app = createApp(App);
 app.use(ElementPlus);
@@ -36,7 +36,7 @@ router.beforeEach((to, from, next) => {
     }
   }
 });
-
+app.use(directives);
 app.use(router);
 app.use(createPinia());
 app.mount('#app');

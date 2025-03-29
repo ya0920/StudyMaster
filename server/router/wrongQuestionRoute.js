@@ -1,5 +1,5 @@
 const Router = require('koa-router');
-const { saveWrongQuestion, getRecentWrongQuestions, getWeeklyWrongQuestions, getLastWeekWrongQuestions, getSubjectDistribution, deleteWrongQuestion,getWrongQuestionDetail } = require('../controllers/index.js');
+const { saveWrongQuestion, getRecentWrongQuestions, getWeeklyWrongQuestions, getLastWeekWrongQuestions, getSubjectDistribution, deleteWrongQuestion,getWrongQuestionDetail, updateQuestionAI, getMasteryRate} = require('../controllers/index.js');
 
 const wrongQuestionRouter = new Router();
 
@@ -17,5 +17,9 @@ wrongQuestionRouter.get('/api/getSubjectDistribution', getSubjectDistribution);
 wrongQuestionRouter.delete('/api/wrongQuestion/:id', deleteWrongQuestion);
 // 获取错题详情路由
 wrongQuestionRouter.get('/api/wrongQuestion/:id', getWrongQuestionDetail);
+// 更新错题的AI解析和解答
+wrongQuestionRouter.put('/api/wrongQuestion/:id/ai-content', updateQuestionAI);
+// 获取学生掌握度
+wrongQuestionRouter.get('/api/masteryRate', getMasteryRate);
 
 module.exports = wrongQuestionRouter;

@@ -44,7 +44,7 @@ async function callDeepSeekModel(prompt, temperature = 0.7) {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${process.env.BAILIAN_API_KEY}`
         },
-        timeout: 60000
+        timeout: 180000
       }
     );
     
@@ -129,7 +129,7 @@ async function generateAnalysis(question) {
 2. 解题关键思路
 3. 详细解析过程
 4. 常见错误及避免方法;
-请不要用markdown格式，只需要缩进和序号就可以了。
+请使用Markdown格式来组织你的回答，可以使用标题、列表、粗体等格式。    
 `;
 
   return await callDeepSeekModel(prompt, 0.3);

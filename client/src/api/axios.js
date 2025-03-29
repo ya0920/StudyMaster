@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { ElMessage } from 'element-plus';
 
-axios.defaults.baseURL = 'http://localhost:3000'; // 设置默认的请求地址
+axios.defaults.baseURL = 'http://120.26.130.17:3001'; // 设置默认的请求地址
 axios.defaults.headers.post['Content-Type'] = 'application/json'; // 告诉浏览器后端返回的数据是 Json 格式，这样浏览器会自动解析
 
 // 请求拦截器

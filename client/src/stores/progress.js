@@ -1,6 +1,6 @@
 // stores/progress.js
 import { defineStore } from 'pinia'
-import { ref, watch } from 'vue'
+import { ref, watch, computed } from 'vue'
 
 export const useProgressStore = defineStore('progress', () => {
   // 数据加载方法（带验证）
@@ -44,6 +44,38 @@ export const useProgressStore = defineStore('progress', () => {
     persistTasks()
   }, { deep: true })
 
+  // 复习任务数据 - 按日期存储
+  const reviewTasksByDate = ref({})
+  
+  // 计算复习进度百分比
+  const reviewProgress = computed(() => {
+    // 收集所有任务
+    let totalTasks = 0;
+    let completedTasks = 0;
+    
+    Object.values(reviewTasksByDate.value).forEach(tasks => {
+      if (Array.isArray(tasks)) {
+        totalTasks += tasks.length;
+        completedTasks += tasks.filter(task => task.completed).length;
+      }
+    });
+    
+    console.log(`计算进度: ${completedTasks}/${totalTasks}`);
+    return totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+  })
+  
+  // 更新复习任务
+  const updateReviewTasks = (date, tasks) => {
+    reviewTasksByDate.value[date] = [...tasks];
+  }
+
+  // 添加掌握度相关状态和方法
+  const masteryRate = ref(0);
+
+  const updateMasteryRate = (rate) => {
+    masteryRate.value = rate;
+  };
+
   return {
     dailyTasks,
     selectedDate,
@@ -60,6 +92,13 @@ export const useProgressStore = defineStore('progress', () => {
       if (!dailyTasks.value[date]) {
         dailyTasks.value[date] = []
       }
-    }
+    },
+    reviewTasksByDate,
+    reviewProgress,
+    updateReviewTasks,
+    masteryRate,
+    updateMasteryRate
   }
+}, {
+  persist: true // 持久化存储
 })

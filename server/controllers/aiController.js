@@ -112,9 +112,65 @@ async function getCompleteInfo(ctx) {
   }
 }
 
+// 获取已完成的复习日期
+const getCompletedDates = async (ctx) => {
+  try {
+    const { studentId } = ctx.query;
+    
+    // 验证参数
+    if (!studentId) {
+      ctx.status = 400;
+      ctx.body = {
+        code: 400,
+        message: '学生ID不能为空'
+      };
+      return;
+    }
+    
+    // 查询所有任务日期及其完成状态
+    const sql = `
+      SELECT 
+        assignment_date,
+        COUNT(*) AS total_tasks,
+        SUM(is_completed = 1) AS completed_tasks
+      FROM daily_review_tasks 
+      WHERE student_id = ? 
+      GROUP BY assignment_date
+    `;
+    
+    const result = await query(sql, [studentId]);
+    
+    // 提取完全完成的日期
+    const completedDates = result
+      .filter(day => day.total_tasks > 0 && day.total_tasks === day.completed_tasks)
+      .map(day => {
+        // 确保日期格式为YYYY-MM-DD
+        const date = new Date(day.assignment_date);
+        return date.toISOString().split('T')[0];
+      });
+    
+    console.log('找到已完成日期:', completedDates);
+    
+    ctx.body = {
+      code: 200,
+      data: completedDates,
+      message: '获取已完成日期成功'
+    };
+  } catch (error) {
+    console.error('获取已完成日期失败:', error);
+    ctx.status = 500;
+    ctx.body = {
+      code: 500,
+      message: '获取已完成日期失败',
+      error: error.message
+    };
+  }
+};
+
 module.exports = {
   extractInfo,
   generateAnalysis,
   generateAnswer,
-  getCompleteInfo
-}; 
+  getCompleteInfo,
+  getCompletedDates
+};

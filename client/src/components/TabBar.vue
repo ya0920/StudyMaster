@@ -23,6 +23,23 @@ const tabItems = ref([
 const isActive = (path) => {
     return route.path.startsWith(path)
 }
+
+// 在TaskTable.vue中添加
+const handleSingleTaskToggle = (taskId, newState) => {
+  if (isPastDate.value) return; // 历史任务不允许修改
+  emit('taskToggle', { taskId, completed: newState });
+};
+
+// 替代原有的selection-change事件，使用自定义复选框
+// 新增处理单个复选框变化
+const handleCheckboxChange = (taskId, checked) => {
+  if (isPastDate.value) return;
+  console.log(`任务 ${taskId} ${checked ? '选中' : '取消选中'}`);
+  const selectedIds = tasks.value
+    .filter(task => task.id === taskId ? checked : task.completed)
+    .map(task => task.id);
+  emit('select', selectedIds);
+};
 </script>
 
 <style lang="less" scoped>
@@ -31,11 +48,8 @@ const isActive = (path) => {
     bottom: 0;
     left: 0;
     right: 0;
-
-    // 使用视口单位适配
     height: calc(12vh - 20px); // 动态高度（范围 50px-80px）
     min-height: 50px; // 最小高度
-
     background: #fff;
     display: flex;
     justify-content: space-around;
@@ -70,5 +84,19 @@ const isActive = (path) => {
             }
         }
     }
+}
+
+.completed-icon {
+  color: #67C23A;
+}
+
+.incomplete-icon {
+  color: #909399;
+}
+
+/* 增强过去任务的视觉区分 */
+:deep(.el-table .past-date-row) {
+  background-color: #fafafa;
+  color: #606266;
 }
 </style>

@@ -76,7 +76,6 @@
 </template>
 
 <script setup>
-// 修改导入，添加 showConfirmDialog
 import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
 import { 
@@ -92,9 +91,7 @@ import {
   Cell 
 } from 'vant';
 import VerticalBarChart from '@/components/VerticalBarChart.vue';
-import { getRecentWrongQuestions, deleteWrongQuestion as deleteWrongQuestionApi } from '@/api/index.js';
-
-// 所有业务逻辑保持不变
+import { getRecentWrongQuestions, deleteWrongQuestion as deleteWrongQuestionApi, addToReviewPlan } from '@/api/index.js';
 
 const router = useRouter();
 const showPopover = ref(false);
@@ -113,8 +110,32 @@ const handleLongPress = (detail) => {
     confirmButtonText: '确定',
     cancelButtonText: '取消'
   })
-    .then(() => {
-      showToast('已添加到复习计划');
+    .then(async () => {
+      try {
+        const userInfo = JSON.parse(localStorage.getItem('userInfo'));
+        if (!userInfo?.id) {
+          showToast('用户信息异常，请重新登录');
+          router.push('/login');
+          return;
+        }
+        
+        const res = await addToReviewPlan({
+          studentId: userInfo.id, 
+          questionId: detail.id
+        });
+        
+        if (res.code === 200) {
+          showToast({
+            message: res.message || '已添加到复习计划',
+            type: 'success'
+          });
+        } else {
+          showToast(res.message || '操作失败');
+        }
+      } catch (error) {
+        console.error('添加到复习计划失败:', error);
+        showToast('操作失败，请重试');
+      }
     })
     .catch(() => {
       // 取消操作，不做任何处理
@@ -357,93 +378,98 @@ const goToDetail = (id) => {
 
 <style lang="less" scoped>
 .book-page {
-    background: #FAFAFA;
-    min-height: 100vh;
-    
-    .content {
-        padding: 18px;
-        padding-bottom: 20px;
+  background-color: #f7f8fa;
+  min-height: 100vh;
+  padding-bottom: 60px;
 
-        .chart-section {
-            background: #fff;
-            border-radius: 12px;
-            padding: 15px;
-            margin-bottom: 24px;
+  .content {
+    padding: 16px;
+  }
 
-            .chart-title {
-                color: #34495e;
-            }
-        }
+  .chart-section {
+    background-color: #fff;
+    border-radius: 12px;
+    padding: 16px;
+    margin-bottom: 20px;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 
-        .text-section {
-            // 移除原来的ul样式，改为直接管理swipe-cell
-            
-            .error-card {
-                margin: 0;
-                background-color: #fff;
-                border-radius: 12px;
-                
-                .card-top {
-                    display: flex;
-                    justify-content: space-between;
-                    align-items: center;
-
-                    .subject {
-                        font-size: 16px;
-                        font-weight: 500;
-                    }
-
-                    .time {
-                        font-size: 12px;
-                        color: #7f8c8d;
-                    }
-                }
-
-                .knowledge {
-                    font-size: 14px;
-                    color: #7f8c8d;
-                    margin-top: 4px;
-                }
-            }
-            
-            // SwipeCell 样式调整
-            :deep(.van-swipe-cell) {
-                margin-top: 12px;
-                border-radius: 12px;
-                overflow: hidden;
-            }
-            
-            // 删除按钮样式
-            .delete-button {
-                height: 100%;
-                width: 80px;
-                display: flex;
-                justify-content: center;
-                align-items: center;
-                font-size: 14px;
-            }
-        }
-
-        .subject-trigger {
-            padding: 0 12px;
-            background: #f5f6f7;
-            border: none;
-            color: #323233;
-
-            .van-icon {
-                margin-left: 4px;
-                transition: transform 0.2s;
-            }
-
-            &[aria-expanded="true"] .van-icon {
-                transform: rotate(180deg);
-            }
-        }
+    .chart-title {
+      font-size: 18px;
+      font-weight: 500;
+      margin-bottom: 16px;
+      color: #323233;
     }
-}
+  }
 
-:deep(.subject-trigger) {
+  .text-section {
+    // 移除原来的ul样式，改为直接管理swipe-cell
+    
+    .error-card {
+      margin: 0;
+      background-color: #fff;
+      border-radius: 12px;
+      
+      .card-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+
+        .subject {
+          font-size: 16px;
+          font-weight: 500;
+        }
+
+        .time {
+          font-size: 12px;
+          color: #7f8c8d;
+        }
+      }
+
+      .knowledge {
+        font-size: 14px;
+        color: #7f8c8d;
+        margin-top: 4px;
+      }
+    }
+    
+    // SwipeCell 样式调整
+    :deep(.van-swipe-cell) {
+      margin-top: 12px;
+      border-radius: 12px;
+      overflow: hidden;
+    }
+    
+    // 删除按钮样式
+    .delete-button {
+      height: 100%;
+      width: 80px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      font-size: 14px;
+    }
+  }
+
+  .subject-trigger {
+    padding: 0 12px;
+    background: #f5f6f7;
+    border: none;
+    color: #323233;
+
+    .van-icon {
+      margin-left: 4px;
+      transition: transform 0.2s;
+    }
+
+    &[aria-expanded="true"] .van-icon {
+      transform: rotate(180deg);
+    }
+  }
+
+  // 在book-page范围内使用deep选择器覆盖组件内部样式
+  :deep(.subject-trigger) {
     color: #333;
     background: #fff;
+  }
 }
 </style>

@@ -1,9 +1,7 @@
 const Router = require('koa-router');
 const router = new Router();
-const { userLogin } = require('../controllers/index.js');
-const { userRegister } = require('../controllers/index.js');
+const { userLogin, userRegister, resetPassword } = require('../controllers/index.js');
 const { sign } = require('../utils/jwt.js');
-
 router.prefix('/user');
 
 // 修改登录接口参数映射
@@ -49,6 +47,22 @@ router.post('/login', async (ctx, next) => {
       code: 500,
       data: error,
       msg: '服务器异常'
+    };
+  }
+});
+
+// 修改重置密码接口 - 使用 controllers 中的函数
+router.post('/resetPassword', async (ctx, next) => {
+  try {
+    const { phone, password } = ctx.request.body;
+    const result = await resetPassword(phone, password);
+    ctx.body = result;
+  } catch (error) {
+    console.error('重置密码失败:', error);
+    ctx.body = {
+      code: 500,
+      message: '重置密码失败',
+      error: error.message
     };
   }
 });

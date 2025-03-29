@@ -4,7 +4,6 @@
             <div class="date-cell" @click="handleDateClick(data.day)">
                 <span>{{ formatDate(data.day) }}</span>
                 <span v-if="isPlanCompleted(data.day)" class="completed-mark">✔</span>
-                <span v-if="isTherePlan(data.day) && !isPlanCompleted(data.day)" class="plan-mark">.</span>
             </div>
         </template>
         <template #header="{ picker }">
@@ -18,62 +17,69 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, defineEmits } from 'vue';
 import { ElCalendar } from 'element-plus';
 
-import { defineEmits } from 'vue'
-
-// 添加props接收完成日期
 const props = defineProps({
   completedDates: {
     type: Array,
     default: () => []
   }
-})
+});
 
-// 修改判断方法
-const isPlanCompleted = (date) => {
-  const formattedDate = formatDate(date)
-  return props.completedDates.includes(formattedDate)
-}
-
-const emit = defineEmits(['date-click']) // 声明自定义事件
-
-// 处理日期点击
-const handleDateClick = (date) => {
-    emit('date-click', date) // 触发事件传递日期
-}
+const emit = defineEmits(['date-click']);
 
 const currentDate = ref(new Date());
 
-// 格式化日期
-const formatDate = (date, isHeader = false) => {
-    const parts = date.split('-');
-    if (isHeader) {
-        return `${parts[0]} ${parts[1]}`;
+const formatDateToYYYYMMDD = (date) => {
+  if (typeof date === 'string') {
+    return date.split('T')[0];
+  } else if (date instanceof Date) {
+    return date.toISOString().split('T')[0];
+  } else {
+    try {
+      return new Date(date).toISOString().split('T')[0];
+    } catch (e) {
+      console.error('日期格式化错误:', e);
+      return '';
     }
-    return parts[2];
+  }
 };
 
-
-
-// 判断当天是否有计划（暂时为空方法）
-const isTherePlan = (date) => {
-    // 后续补充根据实际数据判断当天是否有计划的逻辑
-    return false;
+const isPlanCompleted = (date) => {
+  const formattedDate = formatDateToYYYYMMDD(date);
+  return props.completedDates.includes(formattedDate);
 };
 
-// 上一个月文本
+const handleDateClick = (date) => {
+    emit('date-click', date)
+}
+
+const formatDate = (date, isHeader = false) => {
+  let dateStr = date;
+  if (date instanceof Date) {
+    dateStr = date.toISOString().split('T')[0];
+  }
+  
+  const parts = dateStr.split('-');
+  if (parts.length !== 3) {
+    console.warn('日期格式不正确:', date);
+    return '';
+  }
+  
+  if (isHeader) {
+    return `${parts[0]}年${parts[1]}月`;
+  }
+  return parts[2];
+};
+
 const prevMonthText = '上一个月';
-// 下一个月文本
 const nextMonthText = '下一个月';
 
-// 切换到上一个月
 const prevMonth = (picker) => {
     picker.prevMonth();
 };
 
-// 切换到下一个月
 const nextMonth = (picker) => {
     picker.nextMonth();
 };
@@ -125,19 +131,9 @@ const nextMonth = (picker) => {
     top: 2px;
     right: 2px;
     color: blue;
-    /* 完成计划的标记颜色改为蓝色 */
-}
-
-.plan-mark {
-    position: absolute;
-    top: 2px;
-    right: 2px;
-    color: gray;
-    /* 有计划但未完成的标记颜色改为灰色 */
 }
 
 .calendar-header {
-    /* display: flex; */
     justify-content: space-around;
     align-items: center;
     padding: 0;

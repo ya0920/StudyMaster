@@ -21,12 +21,11 @@
                 <div class="stat-card">
                     <div class="stat-title">复习进度</div>
                     <div class="stat-content">
-                        <span class="main-value">{{ reviewProgress }}%</span>
-
+                        <span class="main-value">{{ todayReviewProgress }}%</span>
                     </div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-title">掌握率</div>
+                    <div class="stat-title">掌握度</div>
                     <div class="main-value">{{ masteryRate }}%</div>
                 </div>
             </section>
@@ -73,7 +72,7 @@ import { useRouter } from 'vue-router'
 import TabBar from '@/components/TabBar.vue'
 import VerticalBarChart from '@/components/VerticalBarChart.vue'
 import { useProgressStore } from '@/stores/progress'
-import { getRecentWrongQuestions, getWeeklyWrongQuestions, getSubjectDistribution } from '@/api/index.js'
+import { getRecentWrongQuestions, getWeeklyWrongQuestions, getSubjectDistribution, getReviewTasks } from '@/api/index.js'
 
 const router = useRouter()
 const progressStore = useProgressStore()
@@ -87,13 +86,20 @@ const todayProgress = computed(() => {
     return total ? Math.round((completed / total) * 100) : 0
 })
 
+// 当日复习进度（修改此处）
+const todayReviewProgress = computed(() => {
+  // 使用 reviewTasksByDate，而不是 dailyTasks
+  const today = new Date().toISOString().split('T')[0];
+  const tasks = progressStore.reviewTasksByDate[today] || [];
+  const total = tasks.length;
+  const completed = tasks.filter(t => t.completed).length;
+  
+  console.log(`当日复习进度计算: 完成${completed}/${total}`);
+  return total ? Math.round((completed / total) * 100) : 0;
+});
+
 // 全局复习进度
-const reviewProgress = computed(() => {
-    const allTasks = Object.values(progressStore.dailyTasks).flat()
-    const total = allTasks.length
-    const completed = allTasks.filter(t => t.completed).length
-    return total ? Math.round((completed / total) * 100) : 0
-})
+const reviewProgress = computed(() => progressStore.reviewProgress)
 
 // 章节掌握率
 const chapterData = ref([])
@@ -137,6 +143,28 @@ onMounted(async () => {
                     name: item.name
                 }));
             }
+
+            // 获取今天日期
+            const today = new Date().toISOString().split('T')[0]
+            
+            // 如果store中还没有数据，则主动加载一次
+            if (!Object.keys(progressStore.reviewTasksByDate).length) {
+                console.log('Home页面主动加载复习任务数据')
+                const res = await getReviewTasks(userInfo.id, today)
+                
+                if (res.code === 200) {
+                    const formattedTasks = res.data.map(task => ({
+                        id: task.taskId,
+                        questionId: task.id,
+                        subject: task.subject,
+                        knowledgePoint: task.knowledgePoint,
+                        completed: Boolean(task.completed)
+                    }))
+                    
+                    // 更新到store中
+                    progressStore.updateReviewTasks(today, formattedTasks)
+                }
+            }
         } catch (error) {
             console.error('获取数据失败:', error);
         }
@@ -149,11 +177,10 @@ const formatTime = (dateString) => {
     return diffDays === 0 ? '今天' : `${diffDays}天前`
 }
 
-// 掌握率
+// 修改掌握率计算属性
 const masteryRate = computed(() => {
-    // 根据实际业务逻辑计算掌握率
-    return progressStore.masteryRate
-})
+  return progressStore.masteryRate || 0;
+});
 
 // 处理按钮点击
 const handleCapture = () => {

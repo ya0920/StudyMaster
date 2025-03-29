@@ -82,11 +82,15 @@ export const extractSubjectAndKnowledge = async (questionContent) => {
   }
 };
 
-// 使用AI生成题目解析
+// 使用AI生成题目解析(增加超时处理)
 export const generateQuestionAnalysis = async (questionContent) => {
   try {
+    console.log('开始请求解析，题目内容:', questionContent.substring(0, 50) + '...');
+    
     const res = await axios.post('/api/ai/analysis', {
       question: questionContent
+    }, { 
+      timeout: 180000 // 客户端也设置3分钟超时
     });
     
     if (res.code === 200 && res.data) {
@@ -95,7 +99,7 @@ export const generateQuestionAnalysis = async (questionContent) => {
       throw new Error('AI解析返回数据结构不符合预期');
     }
   } catch (err) {
-    console.error('AI解析失败:', err);
+    console.error('AI解析失败详情:', err.response?.data || err.message);
     throw err;
   }
 };
@@ -217,5 +221,105 @@ export const getWrongQuestionDetail = async (id) => {
   } catch (error) {
     console.error('获取错题详情失败:', error);
     throw error;
+  }
+};
+
+// 修改为清晰的参数结构
+export const addToReviewPlan = async (params) => {
+  try {
+    const res = await axios.post('/api/reviewTask', params);
+    return res;
+  } catch (error) {
+    console.error('添加复习计划失败:', error);
+    throw error;
+  }
+};
+
+// 获取复习任务
+export const getReviewTasks = async (studentId, date) => {
+  try {
+    console.log('API调用getReviewTasks ->', {studentId, date});
+    const res = await axios.get('/api/reviewTasks', {
+      params: {
+        studentId,
+        date
+      }
+    });
+    console.log('获取任务响应:', res);
+    return res;
+  } catch (error) {
+    console.error('获取任务失败:', error);
+    throw error;
+  }
+};
+
+// 完成复习任务
+export const completeReviewTask = async (taskId) => {
+  try {
+    const res = await axios.put(`/api/reviewTask/${taskId}/complete`);
+    return res;
+  } catch (error) {
+    console.error('更新任务状态失败:', error);
+    throw error;
+  }
+};
+
+// 取消完成复习任务
+export const uncompleteReviewTask = async (taskId) => {
+  try {
+    const res = await axios.put(`/api/reviewTask/${taskId}/uncomplete`);
+    return res;
+  } catch (error) {
+    console.error('取消任务完成状态失败:', error);
+    throw error;
+  }
+};
+
+// 获取所有已完成日期
+export const getCompletedDates = async (studentId) => {
+  try {
+    const res = await axios.get('/api/completedReviewDates', {
+      params: { studentId }
+    });
+    return res; // 返回完整响应对象，而不是res.data
+  } catch (error) {
+    console.error('获取已完成日期失败:', error);
+    throw error;
+  }
+};
+
+// 重置密码
+export const resetPassword = async (params) => {
+  try {
+    const res = await axios.post('/user/resetPassword', params);
+    return res;
+  } catch (error) {
+    console.error('重置密码请求失败:', error);
+    throw error;
+  }
+};
+
+// 更新错题的AI解析和答案
+export const updateWrongQuestionAI = async (questionId, aiSolution, aiAnalysis) => {
+  try {
+    const res = await axios.put(`/api/wrongQuestion/${questionId}/ai-content`, {
+      aiSolution,
+      aiAnalysis
+    });
+    return res;
+  } catch (error) {
+    console.error('更新错题AI内容失败:', error);
+    throw error;
+  }
+};
+
+// 获取学生掌握度
+export const getMasteryRate = async (studentId) => {
+  try {
+    const res = await axios.get(`/api/masteryRate?studentId=${studentId}`);
+    return res;
+  } catch (err) {
+    console.error('获取掌握度失败:', err);
+    throw err;
   }
 };

@@ -18,6 +18,6 @@ app.use(koaBody({
 // 注册所有路由
 useRouters(app);
 
-app.listen(3000, () => {
+app.listen(3001, () => {
   console.log('server is running at port 3000');
 });

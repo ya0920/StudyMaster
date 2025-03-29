@@ -37,19 +37,12 @@
                             <span>{{ compareText }}</span>
                         </div>
                     </div>
-                    
+
                     <!-- 右侧进度环 -->
                     <div class="data-right">
-                        <van-circle
-                            v-model:current="masteryPercent"
-                            :rate="100"
-                            :speed="100"
-                            :color="circleColor"
-                            layer-color="#ebedf0"
-                            :text="masteryPercent + '%'"
-                            size="80"
-                            :stroke-width="10"
-                        />
+                        <van-circle :current-rate="masteryRateDisplay" :rate="100" :speed="10" :color="primaryColor"
+                            layer-color="rgba(33, 150, 243, 0.1)" :text="masteryPercent + '%'" size="90"
+                            :stroke-width="60" />
                         <div class="circle-label">掌握度</div>
                     </div>
                 </div>
@@ -108,13 +101,15 @@
 </template>
 
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import TabBar from '@/components/TabBar.vue'
-import { getWeeklyWrongQuestions } from '@/api/index.js'
-import { Circle as VanCircle } from 'vant' // 导入Circle组件
+import { getWeeklyWrongQuestions, getMasteryRate } from '@/api/index.js'
+import { Circle, Progress } from 'vant';
+import { useProgressStore } from '@/stores/progress'
 
 const router = useRouter()
+const progressStore = useProgressStore()
 
 // 用户信息
 const userInfo = ref({
@@ -132,6 +127,45 @@ const studyDays = ref(3) // 默认值
 const masteryPercent = ref(75) // 掌握度百分比
 const totalQuestions = ref(100) // 总题目数
 
+// 添加一个用于显示的变量(初始化为0以便有动画效果)
+const masteryRateDisplay = ref(0);
+
+// 添加 watch 以便在真实值变化时更新显示值
+watch(masteryPercent, (newVal, oldVal) => {
+    // 清除可能存在的旧定时器
+    if (window.progressAnimTimer) {
+        clearInterval(window.progressAnimTimer);
+    }
+
+    // 记录动画起点
+    const startVal = masteryRateDisplay.value;
+    const endVal = newVal;
+
+    // 如果是首次或差异很小，直接设置
+    if (oldVal === undefined || Math.abs(endVal - startVal) < 5) {
+        masteryRateDisplay.value = endVal;
+        return;
+    }
+
+    // 优化动画参数
+    const duration = 1200; // 稍微缩短动画时间
+    const interval = 16; // 使用更流畅的帧率 (~60fps)
+    const steps = Math.max(duration / interval, 1);
+    const increment = (endVal - startVal) / steps;
+
+    let count = 0;
+    window.progressAnimTimer = setInterval(() => {
+        count++;
+        // 使用精确计算而不是累加，避免误差
+        masteryRateDisplay.value = startVal + increment * count;
+
+        if (count >= steps) {
+            masteryRateDisplay.value = endVal; // 确保最终值正确
+            clearInterval(window.progressAnimTimer);
+        }
+    }, interval);
+});
+
 // 圆环颜色计算
 const circleColor = computed(() => {
     if (masteryPercent.value < 60) return '#ff4d4f' // 红色
@@ -142,15 +176,15 @@ const circleColor = computed(() => {
 // 计算用户徽章
 const userBadge = computed(() => {
     if (weeklyErrorCount.value > 20) return '学习达人'
-    if (weeklyErrorCount.value > 10) return '勤奋学员' 
+    if (weeklyErrorCount.value > 10) return '勤奋学员'
     return '优秀学员'
 })
 
 // 比较文本
 const compareText = computed(() => {
     const rate = Math.abs(parseFloat(growthRate.value))
-    return growthRate.value > 0 
-        ? `较上周增长${rate}%` 
+    return growthRate.value > 0
+        ? `较上周增长${rate}%`
         : `较上周下降${rate}%`
 })
 
@@ -171,31 +205,66 @@ const getUserInfo = () => {
 const fetchWrongQuestionStats = async () => {
     try {
         if (!userInfo.value.id) return
-        
+
         const res = await getWeeklyWrongQuestions({ studentId: userInfo.value.id })
         console.log('获取到错题统计:', res)
-        
+
         if (res.code === 200 && res.data) {
             weeklyErrorCount.value = res.data.count || 0
             growthRate.value = res.data.growthRate || 0
-            
-            // 随机模拟掌握度数据 - 实际项目中应从API获取
-            masteryPercent.value = Math.floor(Math.random() * 40) + 60  // 60-100之间随机数
         }
     } catch (error) {
         console.error('获取错题统计失败:', error)
-        
+
         // 获取失败时使用模拟数据
         weeklyErrorCount.value = 15
         growthRate.value = 5.2
-        masteryPercent.value = 75
+    }
+}
+
+// 简化获取掌握度的函数
+const fetchMasteryRate = async () => {
+    try {
+        if (!userInfo.value.id) return;
+
+        // 设置初始显示值为0，准备动画
+        masteryRateDisplay.value = 0;
+
+        // 获取API数据
+        const res = await getMasteryRate(userInfo.value.id);
+        let finalRate = 75; // 默认值
+
+        if (res.code === 200) {
+            finalRate = res.data.masteryRate;
+            console.log('API返回掌握度:', finalRate);
+
+            // 如果缓存值差异不大，优先使用缓存避免跳变
+            const cachedRate = progressStore.masteryRate;
+            if (cachedRate > 0 && Math.abs(cachedRate - finalRate) < 10) {
+                console.log('使用缓存掌握度:', cachedRate);
+                finalRate = cachedRate;
+            }
+
+            // 更新存储
+            progressStore.updateMasteryRate(finalRate);
+        }
+
+        // 最后一次性设置值，触发一次动画
+        masteryPercent.value = finalRate;
+
+    } catch (error) {
+        console.error('获取掌握度失败:', error);
+        masteryPercent.value = 75;
     }
 }
 
 // 组件挂载时获取数据
 onMounted(() => {
-    getUserInfo()
-    fetchWrongQuestionStats()
+    getUserInfo();
+    // 先获取掌握度，再获取错题统计
+    fetchMasteryRate().then(() => {
+        fetchWrongQuestionStats();
+    });
 })
 
 // 点击错题本的处理函数
@@ -219,7 +288,11 @@ const logout = () => {
     localStorage.removeItem('userInfo')
     router.push('/login')
 }
+
+// 定义 JS 变量 primaryColor
+const primaryColor = '#2196F3';
 </script>
+
 
 <style lang="less" scoped>
 @primary-color: #2196F3;
@@ -327,11 +400,10 @@ const logout = () => {
             display: flex;
             flex-direction: column;
             align-items: center;
-            padding-left: 16px;
-            
+
             .circle-label {
-                margin-top: 4px;
-                font-size: 12px;
+                margin-top: 8px;
+                font-size: 14px;
                 color: #666;
             }
         }
@@ -358,12 +430,12 @@ const logout = () => {
             display: flex;
             align-items: center;
             font-size: 12px;
-            
+
             .icon-rise {
                 margin-right: 4px;
                 color: #4CAF50 !important;
             }
-            
+
             .icon-fall {
                 margin-right: 4px;
                 color: #F44336;
@@ -376,18 +448,18 @@ const logout = () => {
     display: flex;
     align-items: center;
     font-size: 12px;
-    
+
     &.rise {
         color: #4CAF50;
-        
+
         .icon-rise {
             margin-right: 4px;
         }
     }
-    
+
     &.fall {
         color: #F44336;
-        
+
         .icon-fall {
             margin-right: 4px;
         }
@@ -414,27 +486,18 @@ const logout = () => {
 
             .iconfont {
                 font-size: 28px;
-                color: @primary-color;
-                margin-bottom: 12px;
+                color: #666;
+                margin: 0 0 6px 0;
+                line-height: 1;
             }
 
-            .card-content {
+            .subtitle {
+                margin-top: 4px;
                 text-align: center;
-                width: 100%;
-
-                h4 {
-                    font-size: 14px;
-                    color: #666;
-                    margin: 0 0 6px 0;
-                    line-height: 1;
-                }
-
-                .subtitle {
-                    font-size: 12px;
-                    color: #2196F3;
-                    min-height: 18px;
-                    line-height: 1.2;
-                }
+                font-size: 12px;
+                color: #2196F3;
+                min-height: 18px;
+                line-height: 1.2;
             }
         }
     }
@@ -473,4 +536,41 @@ const logout = () => {
         }
     }
 }
+
+/* 添加动画样式 */
+.fade-zoom-enter-active {
+    transition: all 0.5s ease;
+}
+
+.fade-zoom-enter-from {
+    opacity: 0;
+    transform: scale(0.8);
+}
+
+/* 进度条文字样式 */
+:deep(.van-circle__text) {
+    font-size: 18px;
+    font-weight: bold;
+    color: #333;
+}
+
+/* 调整圆环位置 */
+.data-right {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    .circle-label {
+        margin-top: 8px;
+        font-size: 14px;
+        color: #666;
+    }
+}
 </style>
+封装了 Axios，后端利用 JWT 来实现登录鉴权
+封装 v-copy、v-debounce、v-longpress 等指令提升交互体验
+基于 Token 实现七天免登录，本地 localStorage 加密存储，拦截器中自动续期Token
+使用媒体查询+ Flex 弹性布局，实现了响应式布局
+接入阿里云 OCR API 实现拍照/截图一键识别题目内容，支持数学公式识别
+使用了 Pinia 来实现用户的复习进度数据共享
+基于 ECharts 实现错题分布、掌握度趋势等可视化图表，直观展示学习状态

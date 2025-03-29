@@ -16,9 +16,13 @@ export default defineConfig({
   ],
   resolve: {
     alias: {
-      '@': fileURLToPath(new URL('./src', import.meta.url)), 
+      '@': fileURLToPath(new URL('./src', import.meta.url)),
       'cropperjs/dist/cropper.css': fileURLToPath(new URL('./node_modules/cropperjs/dist/cropper.css', import.meta.url))
-    
+
     },
   },
+  server: {
+    host: '0.0.0.0',
+    port: 5174
+  }
 })
