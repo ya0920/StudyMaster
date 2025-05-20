@@ -21,6 +21,23 @@ function verify() {
             const decoded = jwt.verify(token, process.env.JWT_SECRET);
             console.log('[JWT] 解码结果:', decoded);
             
+            // 计算Token剩余有效期（秒）
+            const currentTime = Math.floor(Date.now() / 1000);
+            const timeRemaining = decoded.exp - currentTime;
+            
+            // 如果Token还有效但临近过期（比如小于2天），刷新Token
+            if (timeRemaining < 2 * 24 * 60 * 60) {
+                // 为用户签发新Token（保持相同的信息，只更新过期时间）
+                const newToken = sign({
+                    id: decoded.id,
+                    phone: decoded.phone
+                });
+                
+                // 在响应头中返回新Token
+                ctx.set('X-New-Token', newToken);
+                console.log('[JWT] 临近过期，已签发新Token');
+            }
+            
             ctx.state.user = { 
                 id: decoded.id // 必须与数据库字段完全一致
             };

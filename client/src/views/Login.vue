@@ -61,8 +61,8 @@ const login = async () => {
     if (res.code === 200) {
         // 存储用户信息需要对应新字段
         localStorage.setItem('userInfo', JSON.stringify({
-            id: res.data.id,        // 使用自增ID
-            name: res.data.name,    // 新增姓名字段
+            id: res.data.id,        
+            name: res.data.name,    
             phone: res.data.phone,
             role: res.data.role
         }));
@@ -71,7 +71,7 @@ const login = async () => {
         const expiresAt = new Date().getTime() + 7 * 24 * 60 * 60 * 1000; // 7 天后过期
         localStorage.setItem('token', token);
         localStorage.setItem('expiresAt', expiresAt);
-
+        
         // 存储用户信息
         localStorage.setItem('userInfo', JSON.stringify(res.data));
         ElMessage.success('登录成功');

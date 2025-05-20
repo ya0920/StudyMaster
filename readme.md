@@ -14,3 +14,24 @@ Echarts：
 
 # 拍照功能
 npm install vue-cropper cropperjs exif-js
+
+# OCR技术
+
+阿里云的题目识别OCR：SDK
+
+百炼api：deepseek-r1
+
+# 云服务器
+
+http://120.26.130.17:5174
+
+
+
+# 本地
+
+npm i
+
+前端：npm run dev
+
+后端：node index.js
+

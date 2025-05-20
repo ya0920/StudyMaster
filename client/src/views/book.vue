@@ -6,9 +6,9 @@
                 <van-popover v-model:show="showPopover" :actions="subjectOptions" @select="onSelectSubject"
                     placement="bottom-end">
                     <template #reference>
-                        <van-button type="primary" size="small" class="subject-trigger van-button--primary" v-debounce="togglePopover">
+                        <van-button size="small" class="subject-trigger">
                             {{ selectedSubject }}
-                            <van-icon name="arrow-down" />
+                            <van-icon name="arrow-down" :class="{ 'arrow-rotate': showPopover }" />
                         </van-button>
                     </template>
                 </van-popover>
@@ -97,10 +97,7 @@ const router = useRouter();
 const showPopover = ref(false);
 const selectedSubject = ref('全部');
 
-// 切换弹出框
-const togglePopover = () => {
-    showPopover.value = !showPopover.value;
-};
+// 移除togglePopover方法，让Popover组件自行处理显示逻辑
 
 // 长按处理函数
 const handleLongPress = (detail) => {
@@ -460,16 +457,17 @@ const goToDetail = (id) => {
       margin-left: 4px;
       transition: transform 0.2s;
     }
+  }
 
-    &[aria-expanded="true"] .van-icon {
-      transform: rotate(180deg);
-    }
+  // 使用新的样式控制箭头旋转
+  .arrow-rotate {
+    transform: rotate(180deg);
   }
 
   // 在book-page范围内使用deep选择器覆盖组件内部样式
-  :deep(.subject-trigger) {
-    color: #333;
+  :deep(.van-button--default) {
     background: #fff;
+    border: 1px solid #ebedf0;
   }
 }
 </style>
