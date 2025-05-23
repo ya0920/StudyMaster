@@ -1,67 +1,36 @@
-name: Build and Deploy
+name: Deploy
 
 on:
   push:
-    branches: [main]
+    branches: ["main"]
 
 jobs:
-  build_and_deploy:
+  deploy:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout source code
-        uses: actions/checkout@v3
-
-      # ---------- 前端 ----------
-      - name: Setup Node.js
-        uses: actions/setup-node@v3
-        with:
-          node-version: 18
-
-      - name: Install frontend deps
-        working-directory: ./client
-        run: npm install
-
-      - name: Build frontend
-        working-directory: ./client
-        run: npm run build
-
-      # ---------- 后端 ----------
-      - name: Install backend deps
-        working-directory: ./server
-        run: npm install
-
-      # ---------- 上传前端 ----------
-      - name: Deploy frontend via SCP
-        uses: appleboy/scp-action@v0.1.4
-        with:
-          host: ${{ secrets.SERVER_IP }}
-          username: ${{ secrets.SERVER_USER }}
-          password: ${{ secrets.SERVER_PASS }}
-          port: ${{ secrets.SERVER_PORT }}
-          source: "client/dist/*"
-          target: "/www/wwwroot/studyMaster/client"
-
-      # ---------- 上传后端 ----------
-      - name: Deploy backend via SCP
-        uses: appleboy/scp-action@v0.1.4
-        with:
-          host: ${{ secrets.SERVER_IP }}
-          username: ${{ secrets.SERVER_USER }}
-          password: ${{ secrets.SERVER_PASS }}
-          port: ${{ secrets.SERVER_PORT }}
-          source: "server/*"
-          target: "/www/wwwroot/studyMaster/server"
-
-      # ---------- 重启后端 ----------
-      - name: Restart backend with PM2
-        uses: appleboy/ssh-action@v1.0.3
+      - name: Deploy and Build on Server via SSH
+        uses: appleboy/ssh-action@v0.1.10
         with:
           host: ${{ secrets.SERVER_IP }}
           username: ${{ secrets.SERVER_USER }}
           password: ${{ secrets.SERVER_PASS }}
           port: ${{ secrets.SERVER_PORT }}
           script: |
-            cd /www/wwwroot/studyMaster/server
-            npm install --production
-            pm2 restart server
+            # 停止后端服务
+            pm2 stop server || true
+            # 进入项目目录
+            cd /www/wwwroot/studyMaster
+            # 拉取最新代码
+            git pull origin main
+            # 前端构建
+            cd client
+            npm ci
+            npm run build
+            cd ..
+            # 后端依赖安装
+            cd server
+            npm ci --production
+            cd ..
+            # 重启后端服务
+            pm2 restart server || pm2 start server/index.js --name server
