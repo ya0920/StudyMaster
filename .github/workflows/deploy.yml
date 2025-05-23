@@ -9,12 +9,19 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Deploy and Build on Server via SSH
+      - name: Checkout repository
+        uses: actions/checkout@v3
+
+      # 🐞 Debug: 打印 Secrets 内容，检查是否传入
+      - name: Debug secrets
         run: |
           echo "SERVER_IP=${{ secrets.SERVER_IP }}"
           echo "SERVER_USER=${{ secrets.SERVER_USER }}"
           echo "SERVER_PASS=${{ secrets.SERVER_PASS }}"
+          echo "SERVER_PORT=${{ secrets.SERVER_PORT }}"
 
+      # 🚀 部署并构建
+      - name: Deploy and Build on Server via SSH
         uses: appleboy/ssh-action@v0.1.10
         with:
           host: ${{ secrets.SERVER_IP }}
@@ -22,6 +29,7 @@ jobs:
           password: ${{ secrets.SERVER_PASS }}
           port: ${{ secrets.SERVER_PORT }}
           script: |
+            echo "✅ 连接成功，开始部署！"
             # 停止后端服务
             pm2 stop server || true
             # 进入项目目录
