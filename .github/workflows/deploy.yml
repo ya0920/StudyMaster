@@ -1,0 +1,67 @@
+name: Build and Deploy
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v3
+
+      # ---------- 前端 ----------
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: 18
+
+      - name: Install frontend deps
+        working-directory: ./client
+        run: npm install
+
+      - name: Build frontend
+        working-directory: ./client
+        run: npm run build
+
+      # ---------- 后端 ----------
+      - name: Install backend deps
+        working-directory: ./server
+        run: npm install
+
+      # ---------- 上传前端 ----------
+      - name: Deploy frontend via SCP
+        uses: appleboy/scp-action@v0.1.4
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          password: ${{ secrets.SERVER_PASS }}
+          port: ${{ secrets.SERVER_PORT }}
+          source: "client/dist/*"
+          target: "/www/wwwroot/studyMaster/client"
+
+      # ---------- 上传后端 ----------
+      - name: Deploy backend via SCP
+        uses: appleboy/scp-action@v0.1.4
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          password: ${{ secrets.SERVER_PASS }}
+          port: ${{ secrets.SERVER_PORT }}
+          source: "server/*"
+          target: "/www/wwwroot/studyMaster/server"
+
+      # ---------- 重启后端 ----------
+      - name: Restart backend with PM2
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SERVER_IP }}
+          username: ${{ secrets.SERVER_USER }}
+          password: ${{ secrets.SERVER_PASS }}
+          port: ${{ secrets.SERVER_PORT }}
+          script: |
+            cd /www/wwwroot/studyMaster/server
+            npm install --production
+            pm2 restart server
