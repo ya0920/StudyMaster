@@ -249,7 +249,7 @@ const handleSave = async () => {
       await router.push('/login')
       return
     }
-
+    console.log('点击保存，准备提交错题');
     // 修改响应处理方式
     const { data: saveResult } = await saveWrongQuestion({
       studentId: userInfo.id,
