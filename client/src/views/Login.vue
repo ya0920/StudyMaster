@@ -2,7 +2,7 @@
     <div class="login-container">
         <div class="logo-head">
             <img src="@/assets/logo.png" alt="">
-            <p>AI助力高效学习</p>
+            <!-- <p>AI助力高效学习</p> -->
         </div>
         <div class="type-select">
             <el-radio-group v-model="userType" size="large" round>
@@ -52,17 +52,17 @@ const login = async () => {
         return;
     }
     // 调用登录接口
-    const res = await userLogin({ 
+    const res = await userLogin({
         phone: phone.value,         // 原 phone_number → phone
-        password: md5(password.value), 
+        password: md5(password.value),
         role: userType.value       // 原 user_type → role
     });
 
     if (res.code === 200) {
         // 存储用户信息需要对应新字段
         localStorage.setItem('userInfo', JSON.stringify({
-            id: res.data.id,        
-            name: res.data.name,    
+            id: res.data.id,
+            name: res.data.name,
             phone: res.data.phone,
             role: res.data.role
         }));
@@ -71,12 +71,12 @@ const login = async () => {
         const expiresAt = new Date().getTime() + 7 * 24 * 60 * 60 * 1000; // 7 天后过期
         localStorage.setItem('token', token);
         localStorage.setItem('expiresAt', expiresAt);
-        
+
         // 存储用户信息
         localStorage.setItem('userInfo', JSON.stringify(res.data));
         ElMessage.success('登录成功');
         console.log('登录成功:', res);
-        
+
 
         // 跳转到 Home 页面
         router.push('/home');
