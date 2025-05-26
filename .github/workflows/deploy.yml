@@ -11,8 +11,10 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
+        with:
+          ref: main
+          fetch-depth: 0
 
-      # 🐞 Debug: 打印 Secrets 内容，检查是否传入
       - name: Debug secrets
         run: |
           echo "SERVER_IP=${{ secrets.SERVER_IP }}"
@@ -20,7 +22,6 @@ jobs:
           echo "SERVER_PASS=${{ secrets.SERVER_PASS }}"
           echo "SERVER_PORT=${{ secrets.SERVER_PORT }}"
 
-      # 🚀 部署并构建
       - name: Deploy and Build on Server via SSH
         uses: appleboy/ssh-action@v0.1.10
         with:
@@ -30,20 +31,17 @@ jobs:
           port: ${{ secrets.SERVER_PORT }}
           script: |
             echo "✅ 连接成功，开始部署！"
-            # 停止后端服务
-            pm2 stop server || true
-            # 进入项目目录
+            git config --global --add safe.directory /www/wwwroot/studyMaster
             cd /www/wwwroot/studyMaster
-            # 拉取最新代码
             git pull origin main
-            # 前端构建
             cd client
-            npm ci
+            npm ci --force
             npm run build
-            cd ..
-            # 后端依赖安装
-            cd server
+            cd ../server
             npm ci --production
-            cd ..
-            # 重启后端服务
-            pm2 restart server || pm2 start server/index.js --name server
+            pm2 delete server || true
+            pm2 start server/index.js --name server
+            pm2 save
+            # 按需添加：复制静态文件 + 重启 Web 服务器
+            # cp -r client/dist/* /var/www/html/
+            # sudo systemctl restart nginx
