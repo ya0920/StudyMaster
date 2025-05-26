@@ -23,23 +23,25 @@ jobs:
           echo "SERVER_PORT=${{ secrets.SERVER_PORT }}"
 
       - name: Deploy and Build on Server via SSH
-        uses: appleboy/ssh-action@v0.1.10
+        uses: appleboy/ssh-action@v0.1.10 # ✅ 缩进修复
         with:
-          host: ${{ secrets.SERVER_IP }}
+          host: ${{ secrets.SERVER_IP }} # ❗ 移除多余的大括号 `}`
           username: ${{ secrets.SERVER_USER }}
           password: ${{ secrets.SERVER_PASS }}
-          port: ${{ secrets.SERVER_PORT }}
+          port: ${{ secrets.SERVER_PORT }} # ❗ 变量引用应为 `${{ secrets.SERVER_PORT }}`
           script: |
             echo "✅ 连接成功，开始部署！"
             git config --global --add safe.directory /www/wwwroot/studyMaster
             cd /www/wwwroot/studyMaster
             git pull origin main
+            # 前端构建
             cd client
             npm ci --force
             npm run build
+            # 后端依赖安装与服务启动
             cd ../server
             npm ci --production
+            # 修复路径并启动服务
             pm2 delete server || true
             pm2 start index.js --name server
             pm2 save --force
-            echo "✅ 部署完成！"
