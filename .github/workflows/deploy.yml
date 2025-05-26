@@ -40,8 +40,6 @@ jobs:
             cd ../server
             npm ci --production
             pm2 delete server || true
-            pm2 start server/index.js --name server
-            pm2 save
-            # 按需添加：复制静态文件 + 重启 Web 服务器
-            # cp -r client/dist/* /var/www/html/
-            # sudo systemctl restart nginx
+            pm2 start index.js --name server
+            pm2 save --force
+            echo "✅ 部署完成！"
