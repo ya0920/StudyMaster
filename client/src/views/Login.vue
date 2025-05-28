@@ -2,7 +2,7 @@
     <div class="login-container">
         <div class="logo-head">
             <img src="@/assets/logo.png" alt="">
-            <p>AI助力高效学习</p>
+            <p>AI助力高效学习123456</p>
         </div>
         <div class="type-select">
             <el-radio-group v-model="userType" size="large" round>
