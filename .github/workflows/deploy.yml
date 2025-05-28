@@ -42,6 +42,8 @@ jobs:
 
             echo "🚀 拷贝前端构建结果到宝塔根目录"
             rm -rf /www/wwwroot/studyMaster.com/dist
+            echo "dist 目录内容如下："
+            ls -al dist
             cp -r dist /www/wwwroot/studyMaster.com/
 
             echo "🛠 安装后端依赖并启动"
