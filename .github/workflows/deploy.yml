@@ -11,9 +11,6 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v3
-        with:
-          ref: main
-          fetch-depth: 0
 
       - name: Debug secrets
         run: |
@@ -23,25 +20,36 @@ jobs:
           echo "SERVER_PORT=${{ secrets.SERVER_PORT }}"
 
       - name: Deploy and Build on Server via SSH
-        uses: appleboy/ssh-action@v0.1.10 # ✅ 缩进修复
+        uses: appleboy/ssh-action@v0.1.10
         with:
-          host: ${{ secrets.SERVER_IP }} # ❗ 移除多余的大括号 `}`
+          host: ${{ secrets.SERVER_IP }}
           username: ${{ secrets.SERVER_USER }}
           password: ${{ secrets.SERVER_PASS }}
-          port: ${{ secrets.SERVER_PORT }} # ❗ 变量引用应为 `${{ secrets.SERVER_PORT }}`
+          port: ${{ secrets.SERVER_PORT }}
           script: |
-            echo "✅ 连接成功，开始部署！"
-            git config --global --add safe.directory /www/wwwroot/studyMaster
+            echo "✅ 开始部署"
             cd /www/wwwroot/studyMaster
-            git pull origin main
-            # 前端构建
+
+            echo "🔄 拉取最新代码"
+            git config --global --add safe.directory /www/wwwroot/studyMaster
+            git fetch --all
+            git reset --hard origin/main
+
+            echo "🛠 构建前端"
             cd client
             npm ci --force
             npm run build
-            # 后端依赖安装与服务启动
+
+            echo "🚀 拷贝前端构建结果到宝塔根目录"
+            rm -rf /www/wwwroot/studyMaster.com/dist
+            cp -r dist /www/wwwroot/studyMaster.com/
+
+            echo "🛠 安装后端依赖并启动"
             cd ../server
             npm ci --production
-            # 修复路径并启动服务
+
             pm2 delete server || true
             pm2 start index.js --name server
             pm2 save --force
+
+            echo "🎉 部署成功！"
